@@ -118,6 +118,7 @@
             align-items: center;
             border: 2px dashed #4facfe;
             transition: all 0.3s ease;
+            position: relative;
         }
         
         .upload-box:hover {
@@ -357,6 +358,15 @@
             color: #c0d0f0;
         }
         
+        .error-message {
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            text-align: center;
+            min-height: 20px;
+            display: none;
+        }
+        
         @media (max-width: 768px) {
             .upload-area, .preview-container {
                 flex-direction: column;
@@ -411,6 +421,7 @@
                 <input type="file" id="videoFile" class="file-input" accept=".mp4">
                 <label for="videoFile" class="file-label">选择视频文件</label>
                 <div class="file-info" id="videoInfo">未选择文件</div>
+                <div class="error-message" id="videoError"></div>
             </div>
             
             <div class="upload-box">
@@ -419,6 +430,7 @@
                 <input type="file" id="subtitleFile" class="file-input" accept=".ass">
                 <label for="subtitleFile" class="file-label">选择字幕文件</label>
                 <div class="file-info" id="subtitleInfo">未选择文件</div>
+                <div class="error-message" id="subtitleError"></div>
             </div>
         </div>
         
@@ -472,6 +484,7 @@
                 <li>字幕文件必须为标准的ASS格式，否则可能无法正确显示</li>
                 <li>合成过程在浏览器中完成，文件不会上传到服务器，保护您的隐私</li>
                 <li>处理时间取决于视频大小和您的设备性能，请耐心等待</li>
+                <li>如果遇到上传问题，请尝试使用Chrome浏览器</li>
             </ul>
         </div>
     </div>
@@ -485,6 +498,8 @@
         const subtitleFileInput = document.getElementById('subtitleFile');
         const videoInfo = document.getElementById('videoInfo');
         const subtitleInfo = document.getElementById('subtitleInfo');
+        const videoError = document.getElementById('videoError');
+        const subtitleError = document.getElementById('subtitleError');
         const videoPreview = document.getElementById('videoPreview');
         const subtitlePreview = document.getElementById('subtitlePreview');
         const convertBtn = document.getElementById('convertBtn');
@@ -530,40 +545,68 @@
         
         // 视频文件上传处理
         videoFileInput.addEventListener('change', (e) => {
+            videoError.style.display = 'none';
+            videoError.textContent = '';
+            
             const file = e.target.files[0];
-            if (file && file.type === 'video/mp4') {
-                videoFile = file;
-                videoInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
-                
-                // 显示视频预览
+            if (!file) return;
+            
+            // 验证文件类型
+            if (!file.name.toLowerCase().endsWith('.mp4')) {
+                videoError.textContent = '请选择有效的MP4视频文件';
+                videoError.style.display = 'block';
+                videoFileInput.value = '';
+                return;
+            }
+            
+            videoFile = file;
+            videoInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            
+            // 显示视频预览
+            try {
                 const videoURL = URL.createObjectURL(file);
                 videoPreview.innerHTML = `<video controls src="${videoURL}"></video>`;
-                
                 checkFilesReady();
-            } else {
-                alert('请选择有效的MP4视频文件');
-                videoFileInput.value = '';
+            } catch (error) {
+                videoError.textContent = '预览失败: ' + error.message;
+                videoError.style.display = 'block';
             }
         });
         
         // 字幕文件上传处理
         subtitleFileInput.addEventListener('change', (e) => {
+            subtitleError.style.display = 'none';
+            subtitleError.textContent = '';
+            
             const file = e.target.files[0];
-            if (file && file.name.endsWith('.ass')) {
-                subtitleFile = file;
-                subtitleInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
-                
-                // 显示字幕预览
+            if (!file) return;
+            
+            // 验证文件类型
+            if (!file.name.toLowerCase().endsWith('.ass')) {
+                subtitleError.textContent = '请选择有效的ASS字幕文件';
+                subtitleError.style.display = 'block';
+                subtitleFileInput.value = '';
+                return;
+            }
+            
+            subtitleFile = file;
+            subtitleInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            
+            // 显示字幕预览
+            try {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     subtitlePreview.textContent = e.target.result;
                 };
+                reader.onerror = (error) => {
+                    subtitleError.textContent = '读取文件失败: ' + error;
+                    subtitleError.style.display = 'block';
+                };
                 reader.readAsText(file);
-                
                 checkFilesReady();
-            } else {
-                alert('请选择有效的ASS字幕文件');
-                subtitleFileInput.value = '';
+            } catch (error) {
+                subtitleError.textContent = '预览失败: ' + error.message;
+                subtitleError.style.display = 'block';
             }
         });
         
@@ -618,6 +661,7 @@
             } catch (error) {
                 console.error('转换失败:', error);
                 statusText.textContent = `转换失败: ${error.message}`;
+                convertBtn.disabled = false; // 重新启用按钮
             }
         });
         
@@ -634,6 +678,8 @@
             convertBtn.disabled = true;
             progressContainer.style.display = 'none';
             downloadContainer.style.display = 'none';
+            videoError.style.display = 'none';
+            subtitleError.style.display = 'none';
         });
         
         // 辅助函数：格式化文件大小
