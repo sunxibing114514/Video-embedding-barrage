@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MP4与ASS字幕合成工具</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script>
     <style>
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
@@ -17,339 +17,256 @@
             background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
             color: #fff;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             padding: 20px;
         }
         
         .container {
-            max-width: 1000px;
-            width: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-            margin: 20px 0;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
         
         header {
             text-align: center;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.4);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px 0;
+            margin-bottom: 30px;
         }
         
         h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(to right, #ff8a00, #da1b60);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         
         .subtitle {
-            color: #bbb;
             font-size: 1.2rem;
-            margin-bottom: 15px;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
         
-        .upload-section {
+        .main-content {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
-            padding: 30px;
+            gap: 30px;
+            margin-bottom: 40px;
         }
         
-        .upload-card {
-            flex: 1;
-            min-width: 300px;
-            background: rgba(255, 255, 255, 0.08);
+        .upload-section, .preview-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 25px;
-            text-align: center;
-            transition: transform 0.3s, background 0.3s;
-            border: 2px dashed rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 300px;
         }
         
-        .upload-card:hover {
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateY(-5px);
-        }
-        
-        .upload-card i {
-            font-size: 3.5rem;
-            color: #ff8a00;
-            margin-bottom: 15px;
-        }
-        
-        .upload-card h3 {
+        .section-title {
             font-size: 1.5rem;
-            margin-bottom: 15px;
-            color: #ff8a00;
-        }
-        
-        .upload-card p {
-            color: #ccc;
             margin-bottom: 20px;
-            font-size: 0.95rem;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
         }
         
-        .file-input {
-            display: none;
+        .section-title i {
+            margin-right: 10px;
+            font-size: 1.8rem;
         }
         
-        .upload-btn {
-            background: #ff8a00;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 30px;
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
             cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
         }
         
-        .upload-btn:hover {
-            background: #ff6a00;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 106, 0, 0.4);
+        .upload-area:hover {
+            border-color: #4a9eff;
+            background: rgba(74, 158, 255, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: #4a9eff;
         }
         
         .file-info {
-            margin-top: 15px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 8px;
-            font-size: 0.9rem;
-            color: #ddd;
+            text-align: left;
         }
         
-        .player-section {
-            padding: 0 30px 30px;
+        .file-info h3 {
+            margin-bottom: 10px;
+            color: #4a9eff;
         }
         
-        .player-container {
-            position: relative;
-            width: 100%;
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .video-container {
             background: #000;
-            border-radius: 10px;
+            border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 20px;
+            position: relative;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
         }
         
-        #video-player {
-            width: 100%;
-            display: block;
-            outline: none;
-        }
-        
-        #subtitle-canvas {
+        .video-container video {
             position: absolute;
-            bottom: 0;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 120px;
-            pointer-events: none;
-            z-index: 10;
+            height: 100%;
+            object-fit: contain;
         }
         
         .controls {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            border-radius: 10px;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
         }
         
         .btn {
-            background: #ff8a00;
-            color: #fff;
+            background: linear-gradient(to right, #4a9eff, #1a73e8);
+            color: white;
             border: none;
-            padding: 12px 20px;
-            border-radius: 30px;
+            padding: 14px 28px;
+            font-size: 1.1rem;
+            border-radius: 50px;
             cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
         }
         
         .btn:hover {
-            background: #ff6a00;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(255, 106, 0, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
         }
         
         .btn:disabled {
-            background: #666;
+            background: #555;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
         
         .btn i {
-            font-size: 1.2rem;
-        }
-        
-        .slider-container {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .slider-label {
-            display: block;
-            margin-bottom: 5px;
-            color: #ddd;
-            font-size: 0.9rem;
+            font-size: 1.3rem;
         }
         
         .progress-container {
             width: 100%;
-            height: 5px;
-            background: #333;
-            border-radius: 3px;
-            cursor: pointer;
-            position: relative;
-        }
-        
-        #progress-bar {
-            height: 100%;
-            width: 0%;
-            background: #ff8a00;
-            border-radius: 3px;
-            position: relative;
-        }
-        
-        #progress-bar::after {
-            content: '';
-            position: absolute;
-            right: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #fff;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-        }
-        
-        .time-display {
-            color: #ddd;
-            font-size: 0.9rem;
-            min-width: 100px;
-            text-align: center;
-        }
-        
-        .download-section {
-            padding: 0 30px 30px;
-            text-align: center;
-        }
-        
-        .download-card {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 15px;
-            padding: 25px;
-        }
-        
-        .download-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-            color: #4CAF50;
-        }
-        
-        .download-card p {
-            color: #ccc;
-            margin-bottom: 20px;
-            font-size: 1rem;
-        }
-        
-        #download-btn {
-            background: #4CAF50;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-        }
-        
-        #download-btn:hover {
-            background: #45a049;
-        }
-        
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-        
-        .status.processing {
-            background: rgba(255, 193, 7, 0.2);
-            color: #FFC107;
-        }
-        
-        .status.success {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-        
-        .status.error {
-            background: rgba(244, 67, 54, 0.2);
-            color: #f44336;
-        }
-        
-        .loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
             display: none;
         }
         
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            border-top-color: #ff8a00;
-            animation: spin 1s linear infinite;
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .footer {
+        .status-text {
             text-align: center;
-            padding: 20px;
-            color: #aaa;
-            font-size: 0.9rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 15px;
+            font-size: 1.1rem;
+            min-height: 27px;
         }
         
-        .highlight {
-            color: #ff8a00;
+        .download-section {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            display: none;
+        }
+        
+        .download-btn {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            font-size: 1.2rem;
+            padding: 16px 40px;
+        }
+        
+        .instructions {
+            margin-top: 40px;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 20px;
+            color: #4a9eff;
+        }
+        
+        .steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 250px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: #4a9eff;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
             font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            opacity: 0.7;
         }
         
         @media (max-width: 768px) {
-            .upload-section {
+            .main-content {
                 flex-direction: column;
             }
             
-            .controls {
-                flex-direction: column;
-            }
-            
-            .btn {
-                width: 100%;
-            }
-            
-            .slider-container {
-                width: 100%;
+            h1 {
+                font-size: 2.2rem;
             }
         }
     </style>
@@ -358,501 +275,303 @@
     <div class="container">
         <header>
             <h1>MP4与ASS字幕合成工具</h1>
-            <p class="subtitle">上传视频与字幕文件，预览效果并下载合成视频</p>
+            <p class="subtitle">在浏览器中直接合成您的MP4视频与ASS字幕文件，无需上传到服务器，保护您的隐私</p>
         </header>
         
-        <div class="upload-section">
-            <div class="upload-card">
-                <i class="fas fa-video"></i>
-                <h3>上传MP4视频</h3>
-                <p>选择或拖放MP4视频文件到此处</p>
-                <button class="upload-btn" id="video-upload-btn">
-                    <i class="fas fa-upload"></i> 选择视频文件
-                </button>
-                <input type="file" id="video-file" class="file-input" accept="video/mp4">
-                <div class="file-info" id="video-info">未选择文件</div>
-            </div>
-            
-            <div class="upload-card">
-                <i class="fas fa-closed-captioning"></i>
-                <h3>上传ASS字幕</h3>
-                <p>选择或拖放ASS字幕文件到此处</p>
-                <button class="upload-btn" id="subtitle-upload-btn">
-                    <i class="fas fa-upload"></i> 选择字幕文件
-                </button>
-                <input type="file" id="subtitle-file" class="file-input" accept=".ass">
-                <div class="file-info" id="subtitle-info">未选择文件</div>
-            </div>
-        </div>
-        
-        <div class="player-section">
-            <div class="player-container">
-                <video id="video-player" controls>
-                    您的浏览器不支持HTML5视频播放
-                </video>
-                <canvas id="subtitle-canvas"></canvas>
-                <div class="loader">
-                    <div class="spinner"></div>
-                    <div class="status">加载中...</div>
+        <div class="main-content">
+            <div class="upload-section">
+                <h2 class="section-title">
+                    <i>📁</i> 上传文件
+                </h2>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">⬆️</div>
+                    <h3>点击或拖拽文件到此处</h3>
+                    <p>支持MP4视频文件和ASS字幕文件</p>
+                    <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">最大文件大小: 100MB</p>
+                </div>
+                
+                <div class="file-info">
+                    <h3>已上传文件:</h3>
+                    <div id="fileList">
+                        <p>等待上传文件...</p>
+                    </div>
                 </div>
             </div>
             
-            <div class="controls">
-                <button class="btn" id="play-pause" disabled>
-                    <i class="fas fa-play"></i> 播放/暂停
-                </button>
+            <div class="preview-section">
+                <h2 class="section-title">
+                    <i>🎬</i> 视频预览
+                </h2>
                 
-                <div class="slider-container">
-                    <div class="slider-label">音量控制</div>
-                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" disabled>
+                <div class="preview-container">
+                    <div class="video-container">
+                        <video id="videoPreview" controls></video>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn" id="processBtn" disabled>
+                            <i>⚙️</i> 开始合成
+                        </button>
+                        <button class="btn" id="resetBtn">
+                            <i>🔄</i> 重置
+                        </button>
+                    </div>
+                    
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    
+                    <div class="status-text" id="statusText"></div>
                 </div>
-                
-                <div class="progress-container">
-                    <div id="progress-bar"></div>
-                </div>
-                
-                <div class="time-display">
-                    <span id="current-time">00:00</span> / 
-                    <span id="total-time">00:00</span>
-                </div>
-                
-                <button class="btn" id="fullscreen" disabled>
-                    <i class="fas fa-expand"></i> 全屏
-                </button>
             </div>
         </div>
         
-        <div class="download-section">
-            <div class="download-card">
-                <h3>下载合成视频</h3>
-                <p>将合成后的视频文件下载到您的设备中</p>
-                <button class="btn" id="download-btn" disabled>
-                    <i class="fas fa-download"></i> 下载合成视频
-                </button>
-                <div class="status" id="download-status"></div>
+        <div class="download-section" id="downloadSection">
+            <h2>视频合成完成！</h2>
+            <p>您可以下载合成后的视频文件</p>
+            <button class="btn download-btn" id="downloadBtn">
+                <i>💾</i> 下载合成视频
+            </button>
+        </div>
+        
+        <div class="instructions">
+            <h2>使用说明</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>上传文件</h3>
+                    <p>点击上传区域或拖放您的MP4视频文件和ASS字幕文件</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>开始合成</h3>
+                    <p>点击"开始合成"按钮将字幕合成到视频中</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>等待处理</h3>
+                    <p>处理时间取决于视频大小和您的设备性能</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>下载视频</h3>
+                    <p>处理完成后，下载合成字幕后的视频文件</p>
+                </div>
             </div>
         </div>
         
-        <div class="footer">
-            <p>提示：合成功能在Chrome、Firefox和Edge等现代浏览器中效果最佳</p>
-            <p>注意：长视频合成可能需要较长时间，请耐心等待</p>
-        </div>
+        <footer>
+            <p>© 2023 MP4与ASS字幕合成工具 | 基于ffmpeg.wasm技术 | 所有处理均在浏览器中完成，保护您的隐私</p>
+        </footer>
     </div>
-
-    <!-- 引入JSASS库 -->
-    <script src="https://cdn.jsdelivr.net/npm/jsass@1.0.0/dist/jsass.min.js"></script>
     
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // 获取DOM元素
-            const videoPlayer = document.getElementById('video-player');
-            const canvas = document.getElementById('subtitle-canvas');
-            const ctx = canvas.getContext('2d');
-            const playPauseBtn = document.getElementById('play-pause');
-            const volumeSlider = document.getElementById('volume-slider');
-            const progressBar = document.getElementById('progress-bar');
-            const progressContainer = document.querySelector('.progress-container');
-            const currentTimeEl = document.getElementById('current-time');
-            const totalTimeEl = document.getElementById('total-time');
-            const fullscreenBtn = document.getElementById('fullscreen');
-            const loader = document.querySelector('.loader');
-            const videoUploadBtn = document.getElementById('video-upload-btn');
-            const subtitleUploadBtn = document.getElementById('subtitle-upload-btn');
-            const videoFileInput = document.getElementById('video-file');
-            const subtitleFileInput = document.getElementById('subtitle-file');
-            const videoInfo = document.getElementById('video-info');
-            const subtitleInfo = document.getElementById('subtitle-info');
-            const downloadBtn = document.getElementById('download-btn');
-            const downloadStatus = document.getElementById('download-status');
-            
-            let videoFile = null;
-            let subtitleFile = null;
-            let ass = null;
-            let mediaRecorder = null;
-            let recordedChunks = [];
-            
-            // 设置Canvas尺寸
-            function resizeCanvas() {
-                canvas.width = videoPlayer.clientWidth;
-                canvas.height = 120;
+        // 全局变量
+        let videoFile = null;
+        let subtitleFile = null;
+        let outputVideoUrl = null;
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ 
+            log: true,
+            progress: ({ ratio }) => {
+                const progress = Math.round(ratio * 100);
+                updateProgress(progress);
             }
+        });
+        
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileList = document.getElementById('fileList');
+        const videoPreview = document.getElementById('videoPreview');
+        const processBtn = document.getElementById('processBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const downloadSection = document.getElementById('downloadSection');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // 事件监听
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#4a9eff';
+            uploadArea.style.backgroundColor = 'rgba(74, 158, 255, 0.2)';
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+            uploadArea.style.backgroundColor = '';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+            uploadArea.style.backgroundColor = '';
             
-            // 初始化
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+        
+        uploadArea.addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.multiple = true;
+            fileInput.accept = '.mp4,.ass';
+            fileInput.click();
             
-            // 显示加载状态
-            function showLoader(message) {
-                loader.style.display = 'block';
-                loader.querySelector('.status').textContent = message;
-            }
-            
-            function hideLoader() {
-                loader.style.display = 'none';
-            }
-            
-            // 上传视频文件
-            videoUploadBtn.addEventListener('click', () => {
-                videoFileInput.click();
-            });
-            
-            videoFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file && file.type.includes('video')) {
-                    videoFile = file;
-                    videoInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
-                    
-                    const videoURL = URL.createObjectURL(file);
-                    videoPlayer.src = videoURL;
-                    
-                    // 启用控件
-                    playPauseBtn.disabled = false;
-                    volumeSlider.disabled = false;
-                    fullscreenBtn.disabled = false;
-                    
-                    videoPlayer.addEventListener('loadedmetadata', () => {
-                        totalTimeEl.textContent = formatTime(videoPlayer.duration);
-                    });
-                }
-            });
-            
-            // 上传字幕文件
-            subtitleUploadBtn.addEventListener('click', () => {
-                subtitleFileInput.click();
-            });
-            
-            subtitleFileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file && file.name.endsWith('.ass')) {
-                    subtitleFile = file;
-                    subtitleInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
-                    
-                    try {
-                        const content = await readFileAsText(file);
-                        const parser = new jsass.Parser();
-                        ass = parser.parse(content);
-                        downloadBtn.disabled = !(videoFile && subtitleFile);
-                    } catch (error) {
-                        subtitleInfo.textContent = "字幕解析失败";
-                        console.error(error);
-                    }
-                }
-            });
-            
-            // 文件拖放功能
-            document.querySelectorAll('.upload-card').forEach(card => {
-                card.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    card.style.borderColor = '#ff8a00';
-                });
-                
-                card.addEventListener('dragleave', () => {
-                    card.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                });
-                
-                card.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    card.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                    
-                    const file = e.dataTransfer.files[0];
-                    if (!file) return;
-                    
-                    if (card.id === 'video-upload-card' && file.type.includes('video')) {
-                        videoFileInput.files = e.dataTransfer.files;
-                        videoFileInput.dispatchEvent(new Event('change'));
-                    } else if (card.id === 'subtitle-upload-card' && file.name.endsWith('.ass')) {
-                        subtitleFileInput.files = e.dataTransfer.files;
-                        subtitleFileInput.dispatchEvent(new Event('change'));
-                    }
-                });
-            });
-            
-            // 播放/暂停控制
-            playPauseBtn.addEventListener('click', () => {
-                if (videoPlayer.paused) {
-                    videoPlayer.play();
-                    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
-                } else {
-                    videoPlayer.pause();
-                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
-                }
-            });
-            
-            // 音量控制
-            volumeSlider.addEventListener('input', () => {
-                videoPlayer.volume = volumeSlider.value;
-            });
-            
-            // 进度条控制
-            videoPlayer.addEventListener('timeupdate', () => {
-                const percent = (videoPlayer.currentTime / videoPlayer.duration) * 100;
-                progressBar.style.width = `${percent}%`;
-                currentTimeEl.textContent = formatTime(videoPlayer.currentTime);
-                
-                // 更新字幕
-                renderSubtitles();
-            });
-            
-            progressContainer.addEventListener('click', (e) => {
-                const width = progressContainer.clientWidth;
-                const clickX = e.offsetX;
-                const duration = videoPlayer.duration;
-                videoPlayer.currentTime = (clickX / width) * duration;
-            });
-            
-            // 全屏控制
-            fullscreenBtn.addEventListener('click', () => {
-                if (videoPlayer.requestFullscreen) {
-                    videoPlayer.requestFullscreen();
-                } else if (videoPlayer.mozRequestFullScreen) {
-                    videoPlayer.mozRequestFullScreen();
-                } else if (videoPlayer.webkitRequestFullscreen) {
-                    videoPlayer.webkitRequestFullscreen();
-                } else if (videoPlayer.msRequestFullscreen) {
-                    videoPlayer.msRequestFullscreen();
-                }
-            });
-            
-            // 时间格式化
-            function formatTime(seconds) {
-                if (isNaN(seconds)) return "00:00";
-                
-                const minutes = Math.floor(seconds / 60);
-                seconds = Math.floor(seconds % 60);
-                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
-            
-            // 文件大小格式化
-            function formatFileSize(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
-            
-            // 读取文件内容
-            function readFileAsText(file) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsText(file);
-                });
-            }
-            
-            // 渲染字幕
-            function renderSubtitles() {
-                // 清除Canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                if (!ass) return;
-                
-                // 获取当前时间对应的字幕
-                const currentTime = videoPlayer.currentTime * 1000; // 转换为毫秒
-                const dialogues = ass.dialogues.filter(d => 
-                    d.start <= currentTime && d.end >= currentTime
-                );
-                
-                // 渲染每一条字幕
-                dialogues.forEach(dialogue => {
-                    const style = ass.styles[dialogue.style];
-                    
-                    // 设置字体
-                    ctx.font = `${style.bold ? 'bold ' : ''}${style.fontSize}px ${style.fontName}`;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${1 - (style.primaryColour.alpha / 255)})`;
-                    ctx.textAlign = 'center';
-                    
-                    // 根据对齐方式设置位置
-                    let yPos;
-                    if (dialogue.alignment >= 7 && dialogue.alignment <= 9) {
-                        // 顶部对齐
-                        yPos = 40;
-                    } else if (dialogue.alignment >= 4 && dialogue.alignment <= 6) {
-                        // 中间对齐
-                        yPos = canvas.height / 2;
-                    } else {
-                        // 底部对齐 (默认)
-                        yPos = canvas.height - 30;
-                    }
-                    
-                    // 绘制文本
-                    ctx.fillText(dialogue.text, canvas.width / 2, yPos);
-                    
-                    // 绘制文字阴影
-                    if (style.outline > 0) {
-                        ctx.strokeStyle = `rgba(0, 0, 0, ${1 - (style.outlineColour.alpha / 255)})`;
-                        ctx.lineWidth = style.outline * 2;
-                        ctx.strokeText(dialogue.text, canvas.width / 2, yPos);
-                    }
-                });
-            }
-            
-            // 下载合成视频
-            downloadBtn.addEventListener('click', async () => {
-                if (!videoFile || !subtitleFile) {
-                    downloadStatus.textContent = "请先上传视频和字幕文件";
-                    downloadStatus.className = "status error";
-                    return;
-                }
-                
-                try {
-                    downloadStatus.textContent = "开始视频合成...";
-                    downloadStatus.className = "status processing";
-                    downloadBtn.disabled = true;
-                    
-                    showLoader("正在合成视频...");
-                    
-                    // 创建合成视频
-                    await recordVideoWithSubtitles();
-                    
-                    downloadStatus.textContent = "视频合成完成！点击下载按钮";
-                    downloadStatus.className = "status success";
-                    downloadBtn.disabled = false;
-                } catch (error) {
-                    console.error("视频合成失败:", error);
-                    downloadStatus.textContent = "合成失败: " + error.message;
-                    downloadStatus.className = "status error";
-                    downloadBtn.disabled = false;
-                } finally {
-                    hideLoader();
-                }
-            });
-            
-            // 录制带有字幕的视频
-            async function recordVideoWithSubtitles() {
-                recordedChunks = [];
-                
-                // 创建Canvas用于录制
-                const offscreenCanvas = document.createElement('canvas');
-                const offscreenCtx = offscreenCanvas.getContext('2d');
-                
-                // 设置Canvas尺寸
-                offscreenCanvas.width = videoPlayer.videoWidth || 1280;
-                offscreenCanvas.height = videoPlayer.videoHeight || 720;
-                
-                // 创建视频流
-                const stream = offscreenCanvas.captureStream(30);
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'video/webm;codecs=vp9'
-                });
-                
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        recordedChunks.push(e.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // 创建下载链接
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `合成视频-${new Date().getTime()}.webm`;
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // 清理
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                };
-                
-                // 开始录制
-                mediaRecorder.start();
-                
-                // 重置视频到开始
-                videoPlayer.currentTime = 0;
-                videoPlayer.play();
-                
-                // 绘制每一帧
-                videoPlayer.ontimeupdate = () => {
-                    // 绘制视频帧
-                    offscreenCtx.drawImage(
-                        videoPlayer, 
-                        0, 0, 
-                        offscreenCanvas.width, 
-                        offscreenCanvas.height
-                    );
-                    
-                    // 绘制字幕
-                    renderSubtitlesToCanvas(offscreenCtx, offscreenCanvas);
-                    
-                    // 如果视频结束，停止录制
-                    if (videoPlayer.currentTime >= videoPlayer.duration - 0.1) {
-                        videoPlayer.pause();
-                        mediaRecorder.stop();
-                        videoPlayer.ontimeupdate = null;
-                    }
-                };
-            }
-            
-            // 渲染字幕到Canvas
-            function renderSubtitlesToCanvas(ctx, canvas) {
-                if (!ass) return;
-                
-                // 获取当前时间对应的字幕
-                const currentTime = videoPlayer.currentTime * 1000;
-                const dialogues = ass.dialogues.filter(d => 
-                    d.start <= currentTime && d.end >= currentTime
-                );
-                
-                // 渲染每一条字幕
-                dialogues.forEach(dialogue => {
-                    const style = ass.styles[dialogue.style];
-                    
-                    // 设置字体
-                    ctx.font = `${style.bold ? 'bold ' : ''}${style.fontSize}px ${style.fontName}`;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${1 - (style.primaryColour.alpha / 255)})`;
-                    ctx.textAlign = 'center';
-                    
-                    // 根据对齐方式设置位置
-                    let yPos;
-                    if (dialogue.alignment >= 7 && dialogue.alignment <= 9) {
-                        // 顶部对齐
-                        yPos = 50;
-                    } else if (dialogue.alignment >= 4 && dialogue.alignment <= 6) {
-                        // 中间对齐
-                        yPos = canvas.height / 2;
-                    } else {
-                        // 底部对齐 (默认)
-                        yPos = canvas.height - 50;
-                    }
-                    
-                    // 绘制文本
-                    ctx.fillText(dialogue.text, canvas.width / 2, yPos);
-                    
-                    // 绘制文字阴影
-                    if (style.outline > 0) {
-                        ctx.strokeStyle = `rgba(0, 0, 0, ${1 - (style.outlineColour.alpha / 255)})`;
-                        ctx.lineWidth = style.outline * 2;
-                        ctx.strokeText(dialogue.text, canvas.width / 2, yPos);
-                    }
-                });
-            }
-            
-            // 设置字幕渲染循环
-            setInterval(renderSubtitles, 40); // 25fps
-            
-            // 初始化视频控件
-            videoPlayer.addEventListener('play', () => {
-                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
-            });
-            
-            videoPlayer.addEventListener('pause', () => {
-                playPauseBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
-            });
-            
-            videoPlayer.addEventListener('volumechange', () => {
-                volumeSlider.value = videoPlayer.volume;
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
             });
         });
+        
+        processBtn.addEventListener('click', processFiles);
+        resetBtn.addEventListener('click', resetApp);
+        downloadBtn.addEventListener('click', downloadVideo);
+        
+        // 处理上传的文件
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                if (file.name.endsWith('.mp4')) {
+                    videoFile = file;
+                    previewVideo(file);
+                } else if (file.name.endsWith('.ass')) {
+                    subtitleFile = file;
+                }
+            }
+            
+            updateFileList();
+            
+            // 如果两个文件都已上传，启用处理按钮
+            if (videoFile && subtitleFile) {
+                processBtn.disabled = false;
+            }
+        }
+        
+        // 更新文件列表显示
+        function updateFileList() {
+            let html = '';
+            
+            if (videoFile) {
+                html += `<p><strong>视频文件:</strong> ${videoFile.name} (${formatFileSize(videoFile.size)})</p>`;
+            }
+            
+            if (subtitleFile) {
+                html += `<p><strong>字幕文件:</strong> ${subtitleFile.name} (${formatFileSize(subtitleFile.size)})</p>`;
+            }
+            
+            if (!videoFile && !subtitleFile) {
+                html = '<p>等待上传文件...</p>';
+            }
+            
+            fileList.innerHTML = html;
+        }
+        
+        // 预览视频
+        function previewVideo(file) {
+            const url = URL.createObjectURL(file);
+            videoPreview.src = url;
+        }
+        
+        // 处理文件（合成视频和字幕）
+        async function processFiles() {
+            if (!videoFile || !subtitleFile) return;
+            
+            // 更新UI
+            processBtn.disabled = true;
+            resetBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            statusText.textContent = '正在初始化ffmpeg...';
+            
+            try {
+                // 加载ffmpeg
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();
+                }
+                
+                // 写入文件到内存
+                statusText.textContent = '正在读取文件...';
+                ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(videoFile));
+                ffmpeg.FS('writeFile', 'subtitle.ass', await fetchFile(subtitleFile));
+                
+                // 运行ffmpeg命令
+                statusText.textContent = '正在合成视频...';
+                await ffmpeg.run(
+                    '-i', 'input.mp4',
+                    '-vf', 'ass=subtitle.ass',
+                    '-c:a', 'copy',
+                    '-y', 'output.mp4'
+                );
+                
+                // 读取输出文件
+                statusText.textContent = '正在生成视频...';
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                
+                // 创建下载URL
+                const blob = new Blob([data.buffer], { type: 'video/mp4' });
+                outputVideoUrl = URL.createObjectURL(blob);
+                
+                // 更新UI
+                statusText.textContent = '视频合成完成！';
+                downloadSection.style.display = 'block';
+                processBtn.disabled = true;
+                resetBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('处理出错:', error);
+                statusText.textContent = `错误: ${error.message}`;
+                processBtn.disabled = false;
+                resetBtn.disabled = false;
+            }
+        }
+        
+        // 更新进度条
+        function updateProgress(percent) {
+            progressBar.style.width = `${percent}%`;
+            statusText.textContent = `处理中: ${percent}%`;
+        }
+        
+        // 下载视频
+        function downloadVideo() {
+            if (!outputVideoUrl) return;
+            
+            const a = document.createElement('a');
+            a.href = outputVideoUrl;
+            a.download = `合成视频_${new Date().getTime()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        // 重置应用
+        function resetApp() {
+            videoFile = null;
+            subtitleFile = null;
+            
+            if (outputVideoUrl) {
+                URL.revokeObjectURL(outputVideoUrl);
+                outputVideoUrl = null;
+            }
+            
+            // 重置UI
+            fileList.innerHTML = '<p>等待上传文件...</p>';
+            videoPreview.src = '';
+            processBtn.disabled = true;
+            resetBtn.disabled = false;
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            statusText.textContent = '';
+            downloadSection.style.display = 'none';
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else return (bytes / 1048576).toFixed(1) + ' MB';
+        }
     </script>
 </body>
 </html>
