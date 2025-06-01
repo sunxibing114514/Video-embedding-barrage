@@ -11,6 +11,8 @@
             --secondary: #3f37c9;
             --accent: #4895ef;
             --success: #4cc9f0;
+            --warning: #f9c74f;
+            --error: #f87171;
             --dark: #1d3557;
             --light: #f8f9fa;
         }
@@ -152,6 +154,9 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
         }
         
         .file-item {
@@ -160,6 +165,11 @@
             padding: 10px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
         
         .file-icon {
@@ -174,6 +184,7 @@
         .file-name {
             font-weight: 500;
             margin-bottom: 4px;
+            word-break: break-all;
         }
         
         .file-size {
@@ -193,6 +204,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
+            font-weight: bold;
         }
         
         .remove-btn:hover {
@@ -403,6 +415,33 @@
             color: var(--success);
         }
         
+        .other-label {
+            background: rgba(249, 199, 79, 0.2);
+            color: var(--warning);
+        }
+        
+        .file-filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-btn.active {
+            background: var(--primary);
+        }
+        
         @media (max-width: 768px) {
             .card-container {
                 grid-template-columns: 1fr;
@@ -438,13 +477,19 @@
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">⬆️</div>
                     <h3>点击或拖拽文件到此处</h3>
-                    <p>支持MP4视频文件和ASS字幕文件</p>
+                    <p>支持任意文件类型（自动过滤MP4和ASS文件）</p>
                     <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">最大文件大小: 100MB</p>
-                    <input type="file" id="fileInput" class="file-input" accept=".mp4,.ass" multiple>
+                    <input type="file" id="fileInput" class="file-input" multiple>
                 </div>
                 
                 <div class="file-info">
                     <h3>已上传文件:</h3>
+                    <div class="file-filter">
+                        <button class="filter-btn active" data-filter="all">全部</button>
+                        <button class="filter-btn" data-filter="video">视频</button>
+                        <button class="filter-btn" data-filter="subtitle">字幕</button>
+                        <button class="filter-btn" data-filter="other">其他</button>
+                    </div>
                     <div class="file-list" id="fileList">
                         <div class="no-files">等待上传文件...</div>
                     </div>
@@ -495,21 +540,21 @@
                 <div class="step">
                     <div class="step-number">1</div>
                     <h3>上传文件</h3>
-                    <p>上传您的MP4视频文件和ASS字幕文件</p>
+                    <p>上传您的MP4视频文件和ASS字幕文件（可上传任意文件）</p>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
+                    <h3>选择文件</h3>
+                    <p>系统会自动识别视频和字幕文件</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
                     <h3>开始合成</h3>
                     <p>点击"开始合成"按钮处理视频</p>
                 </div>
                 <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>等待处理</h3>
-                    <p>处理时间取决于视频大小和设备性能</p>
-                </div>
-                <div class="step">
                     <div class="step-number">4</div>
-                    <h3>下载视频</h3>
+                    <h3>下载结果</h3>
                     <p>完成后下载带字幕的视频文件</p>
                 </div>
             </div>
@@ -525,6 +570,7 @@
         let videoFile = null;
         let subtitleFile = null;
         let outputVideoUrl = null;
+        let allFiles = [];
         const { createFFmpeg, fetchFile } = FFmpeg;
         const ffmpeg = createFFmpeg({ 
             log: true,
@@ -547,6 +593,7 @@
         const statusText = document.getElementById('statusText');
         const downloadSection = document.getElementById('downloadSection');
         const downloadBtn = document.getElementById('downloadBtn');
+        const filterButtons = document.querySelectorAll('.filter-btn');
         
         // 事件监听
         uploadArea.addEventListener('dragover', (e) => {
@@ -572,78 +619,124 @@
         resetBtn.addEventListener('click', resetApp);
         downloadBtn.addEventListener('click', downloadVideo);
         
-        // 处理上传的文件
+        // 文件过滤按钮事件
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                updateFileList(btn.dataset.filter);
+            });
+        });
+        
+        // 处理上传的文件（无格式限制）
         function handleFiles(files) {
             let filesAdded = false;
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const fileName = file.name.toLowerCase();
+                allFiles.push(file);
+                filesAdded = true;
                 
-                if (fileName.endsWith('.mp4')) {
-                    if (videoFile) {
-                        alert('您已经上传了一个视频文件。请先删除当前视频再上传新文件。');
-                        continue;
-                    }
+                // 自动识别视频和字幕文件
+                if (!videoFile && isVideoFile(file)) {
                     videoFile = file;
                     previewVideo(file);
-                    filesAdded = true;
-                } else if (fileName.endsWith('.ass')) {
-                    if (subtitleFile) {
-                        alert('您已经上传了一个字幕文件。请先删除当前字幕再上传新文件。');
-                        continue;
-                    }
+                } else if (!subtitleFile && isSubtitleFile(file)) {
                     subtitleFile = file;
-                    filesAdded = true;
-                } else {
-                    alert(`文件"${file.name}"不是支持的格式。请上传MP4视频或ASS字幕文件。`);
                 }
             }
             
             if (filesAdded) {
                 updateFileList();
                 
-                // 如果两个文件都已上传，启用处理按钮
+                // 如果两个文件都已识别，启用处理按钮
                 if (videoFile && subtitleFile) {
                     processBtn.disabled = false;
                     statusText.textContent = '文件准备就绪，可以开始合成';
                     statusText.style.color = '#4ade80';
+                } else {
+                    statusText.textContent = '请确保已上传MP4视频和ASS字幕文件';
+                    statusText.style.color = '#f9c74f';
                 }
             }
         }
         
+        // 检查是否为视频文件
+        function isVideoFile(file) {
+            const fileName = file.name.toLowerCase();
+            return fileName.endsWith('.mp4') || fileName.endsWith('.mov') || 
+                   fileName.endsWith('.avi') || fileName.endsWith('.mkv');
+        }
+        
+        // 检查是否为字幕文件
+        function isSubtitleFile(file) {
+            const fileName = file.name.toLowerCase();
+            return fileName.endsWith('.ass') || fileName.endsWith('.srt') || 
+                   fileName.endsWith('.ssa') || fileName.endsWith('.vtt');
+        }
+        
+        // 获取文件类型
+        function getFileType(file) {
+            if (file === videoFile) return 'video';
+            if (file === subtitleFile) return 'subtitle';
+            if (isVideoFile(file)) return 'video';
+            if (isSubtitleFile(file)) return 'subtitle';
+            return 'other';
+        }
+        
         // 更新文件列表显示
-        function updateFileList() {
-            let html = '';
+        function updateFileList(filter = 'all') {
+            if (allFiles.length === 0) {
+                fileList.innerHTML = '<div class="no-files">等待上传文件...</div>';
+                return;
+            }
             
-            if (videoFile || subtitleFile) {
-                if (videoFile) {
-                    html += `
-                    <div class="file-item">
-                        <div class="file-icon">🎥</div>
-                        <div class="file-details">
-                            <div class="file-name">${videoFile.name}</div>
-                            <div class="file-size">${formatFileSize(videoFile.size)}</div>
-                        </div>
-                        <span class="file-type-label video-label">视频</span>
-                        <button class="remove-btn" data-type="video">×</button>
-                    </div>`;
+            let html = '';
+            let videoFound = false;
+            let subtitleFound = false;
+            
+            for (let i = 0; i < allFiles.length; i++) {
+                const file = allFiles[i];
+                const fileType = getFileType(file);
+                
+                // 应用过滤器
+                if (filter !== 'all' && fileType !== filter) continue;
+                
+                let typeLabel = '';
+                let typeClass = '';
+                let icon = '📄';
+                
+                if (fileType === 'video') {
+                    typeLabel = '视频';
+                    typeClass = 'video-label';
+                    icon = '🎥';
+                    videoFound = true;
+                } else if (fileType === 'subtitle') {
+                    typeLabel = '字幕';
+                    typeClass = 'subtitle-label';
+                    icon = '📝';
+                    subtitleFound = true;
+                } else {
+                    typeLabel = '其他';
+                    typeClass = 'other-label';
+                    icon = '📁';
                 }
                 
-                if (subtitleFile) {
-                    html += `
-                    <div class="file-item">
-                        <div class="file-icon">📝</div>
-                        <div class="file-details">
-                            <div class="file-name">${subtitleFile.name}</div>
-                            <div class="file-size">${formatFileSize(subtitleFile.size)}</div>
-                        </div>
-                        <span class="file-type-label subtitle-label">字幕</span>
-                        <button class="remove-btn" data-type="subtitle">×</button>
-                    </div>`;
-                }
-            } else {
-                html = '<div class="no-files">等待上传文件...</div>';
+                html += `
+                <div class="file-item" data-type="${fileType}">
+                    <div class="file-icon">${icon}</div>
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                    <span class="file-type-label ${typeClass}">${typeLabel}</span>
+                    <button class="remove-btn" data-index="${i}">×</button>
+                </div>`;
+            }
+            
+            // 如果没有匹配的文件
+            if (!html) {
+                html = `<div class="no-files">没有匹配的文件</div>`;
             }
             
             fileList.innerHTML = html;
@@ -651,22 +744,48 @@
             // 添加删除按钮事件
             document.querySelectorAll('.remove-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const type = e.target.getAttribute('data-type');
-                    if (type === 'video') {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    const removedFile = allFiles[index];
+                    
+                    // 如果删除的是当前选中的视频或字幕文件
+                    if (removedFile === videoFile) {
                         videoFile = null;
                         videoPreview.src = '';
-                    } else if (type === 'subtitle') {
+                    } else if (removedFile === subtitleFile) {
                         subtitleFile = null;
                     }
                     
+                    // 从数组中删除文件
+                    allFiles.splice(index, 1);
+                    
+                    // 尝试重新选择视频和字幕
+                    if (!videoFile) {
+                        videoFile = allFiles.find(f => isVideoFile(f)) || null;
+                        if (videoFile) previewVideo(videoFile);
+                    }
+                    
+                    if (!subtitleFile) {
+                        subtitleFile = allFiles.find(f => isSubtitleFile(f)) || null;
+                    }
+                    
+                    // 更新UI
                     updateFileList();
                     processBtn.disabled = !(videoFile && subtitleFile);
                     
                     if (!videoFile && !subtitleFile) {
                         statusText.textContent = '';
+                    } else if (videoFile && subtitleFile) {
+                        statusText.textContent = '文件准备就绪，可以开始合成';
+                        statusText.style.color = '#4ade80';
+                    } else {
+                        statusText.textContent = '请确保已上传MP4视频和ASS字幕文件';
+                        statusText.style.color = '#f9c74f';
                     }
                 });
             });
+            
+            // 更新处理按钮状态
+            processBtn.disabled = !(videoFile && subtitleFile);
         }
         
         // 预览视频
@@ -677,7 +796,11 @@
         
         // 处理文件（合成视频和字幕）
         async function processFiles() {
-            if (!videoFile || !subtitleFile) return;
+            if (!videoFile || !subtitleFile) {
+                statusText.textContent = '错误：请确保已选择视频和字幕文件';
+                statusText.style.color = '#f87171';
+                return;
+            }
             
             // 更新UI
             processBtn.disabled = true;
@@ -754,6 +877,7 @@
         function resetApp() {
             videoFile = null;
             subtitleFile = null;
+            allFiles = [];
             
             if (outputVideoUrl) {
                 URL.revokeObjectURL(outputVideoUrl);
@@ -771,6 +895,15 @@
             statusText.textContent = '';
             statusText.style.color = '';
             downloadSection.style.display = 'none';
+            
+            // 重置过滤器
+            filterButtons.forEach(btn => {
+                if (btn.dataset.filter === 'all') {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
         }
         
         // 格式化文件大小
