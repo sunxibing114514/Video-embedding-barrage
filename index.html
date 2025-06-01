@@ -6,6 +6,15 @@
     <title>MP4与ASS字幕合成工具</title>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script>
     <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --accent: #4895ef;
+            --success: #4cc9f0;
+            --dark: #1d3557;
+            --light: #f8f9fa;
+        }
+        
         * {
             box-sizing: border-box;
             margin: 0;
@@ -15,9 +24,10 @@
         
         body {
             background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
-            color: #fff;
+            color: var(--light);
             min-height: 100vh;
             padding: 20px;
+            line-height: 1.6;
         }
         
         .container {
@@ -36,6 +46,9 @@
             font-size: 2.8rem;
             margin-bottom: 15px;
             text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            background: linear-gradient(to right, #4cc9f0, #4361ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
         .subtitle {
@@ -44,58 +57,82 @@
             max-width: 700px;
             margin: 0 auto;
             line-height: 1.6;
+            color: #e9ecef;
         }
         
-        .main-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
             margin-bottom: 40px;
         }
         
-        .upload-section, .preview-section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            flex: 1;
-            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
-        .section-title {
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-title {
             font-size: 1.5rem;
             margin-bottom: 20px;
-            padding-bottom: 10px;
+            padding-bottom: 12px;
             border-bottom: 2px solid rgba(255, 255, 255, 0.2);
             display: flex;
             align-items: center;
-        }
-        
-        .section-title i {
-            margin-right: 10px;
-            font-size: 1.8rem;
+            gap: 12px;
+            color: var(--accent);
         }
         
         .upload-area {
             border: 3px dashed rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            padding: 30px;
+            border-radius: 12px;
+            padding: 30px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 20px;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         
-        .upload-area:hover {
-            border-color: #4a9eff;
+        .upload-area.active {
+            border-color: var(--accent);
             background: rgba(74, 158, 255, 0.1);
         }
         
         .upload-icon {
-            font-size: 4rem;
+            font-size: 3.5rem;
             margin-bottom: 15px;
-            color: #4a9eff;
+            color: var(--accent);
+            transition: transform 0.3s ease;
+        }
+        
+        .upload-area:hover .upload-icon {
+            transform: scale(1.1);
+        }
+        
+        .file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
         }
         
         .file-info {
@@ -108,7 +145,59 @@
         
         .file-info h3 {
             margin-bottom: 10px;
-            color: #4a9eff;
+            color: var(--accent);
+        }
+        
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .file-icon {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+        
+        .file-details {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .file-size {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .remove-btn {
+            background: rgba(255, 99, 99, 0.2);
+            border: none;
+            color: #ff6363;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .remove-btn:hover {
+            background: rgba(255, 99, 99, 0.3);
+            transform: scale(1.1);
         }
         
         .preview-container {
@@ -123,6 +212,7 @@
             overflow: hidden;
             position: relative;
             padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
         }
         
         .video-container video {
@@ -143,7 +233,7 @@
         }
         
         .btn {
-            background: linear-gradient(to right, #4a9eff, #1a73e8);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             color: white;
             border: none;
             padding: 14px 28px;
@@ -154,12 +244,13 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+            font-weight: 600;
         }
         
         .btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.6);
         }
         
         .btn:disabled {
@@ -167,6 +258,7 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+            opacity: 0.6;
         }
         
         .btn i {
@@ -188,6 +280,17 @@
             width: 0%;
             transition: width 0.3s ease;
             border-radius: 10px;
+            position: relative;
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
         }
         
         .status-text {
@@ -195,60 +298,81 @@
             margin-top: 15px;
             font-size: 1.1rem;
             min-height: 27px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
         }
         
         .download-section {
             text-align: center;
             margin-top: 30px;
-            padding: 20px;
+            padding: 30px 20px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 15px;
             display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .download-btn {
             background: linear-gradient(to right, #00b09b, #96c93d);
             font-size: 1.2rem;
             padding: 16px 40px;
+            margin-top: 20px;
         }
         
         .instructions {
             margin-top: 40px;
-            padding: 25px;
+            padding: 30px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 15px;
         }
         
         .instructions h2 {
             margin-bottom: 20px;
-            color: #4a9eff;
+            color: var(--accent);
+            text-align: center;
         }
         
         .steps {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
         
         .step {
-            flex: 1;
-            min-width: 250px;
-            padding: 20px;
+            padding: 25px 20px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .step:hover {
+            transform: translateY(-5px);
         }
         
         .step-number {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             width: 40px;
             height: 40px;
-            background: #4a9eff;
+            background: var(--primary);
             border-radius: 50%;
-            text-align: center;
-            line-height: 40px;
             font-weight: bold;
             margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .step h3 {
+            margin-bottom: 10px;
+            color: var(--success);
         }
         
         footer {
@@ -260,13 +384,40 @@
             opacity: 0.7;
         }
         
+        .file-type-label {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        
+        .video-label {
+            background: rgba(72, 149, 239, 0.2);
+            color: var(--accent);
+        }
+        
+        .subtitle-label {
+            background: rgba(76, 201, 240, 0.2);
+            color: var(--success);
+        }
+        
         @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column;
+            .card-container {
+                grid-template-columns: 1fr;
             }
             
             h1 {
                 font-size: 2.2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
             }
         }
     </style>
@@ -278,10 +429,10 @@
             <p class="subtitle">在浏览器中直接合成您的MP4视频与ASS字幕文件，无需上传到服务器，保护您的隐私</p>
         </header>
         
-        <div class="main-content">
-            <div class="upload-section">
-                <h2 class="section-title">
-                    <i>📁</i> 上传文件
+        <div class="card-container">
+            <div class="card">
+                <h2 class="card-title">
+                    <span>📁</span> 上传文件
                 </h2>
                 
                 <div class="upload-area" id="uploadArea">
@@ -289,19 +440,20 @@
                     <h3>点击或拖拽文件到此处</h3>
                     <p>支持MP4视频文件和ASS字幕文件</p>
                     <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">最大文件大小: 100MB</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".mp4,.ass" multiple>
                 </div>
                 
                 <div class="file-info">
                     <h3>已上传文件:</h3>
-                    <div id="fileList">
-                        <p>等待上传文件...</p>
+                    <div class="file-list" id="fileList">
+                        <div class="no-files">等待上传文件...</div>
                     </div>
                 </div>
             </div>
             
-            <div class="preview-section">
-                <h2 class="section-title">
-                    <i>🎬</i> 视频预览
+            <div class="card">
+                <h2 class="card-title">
+                    <span>🎬</span> 合成与预览
                 </h2>
                 
                 <div class="preview-container">
@@ -311,15 +463,17 @@
                     
                     <div class="controls">
                         <button class="btn" id="processBtn" disabled>
-                            <i>⚙️</i> 开始合成
+                            <span>⚙️</span> 开始合成
                         </button>
                         <button class="btn" id="resetBtn">
-                            <i>🔄</i> 重置
+                            <span>🔄</span> 重置
                         </button>
                     </div>
                     
                     <div class="progress-container" id="progressContainer">
-                        <div class="progress-bar" id="progressBar"></div>
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-text">0%</div>
+                        </div>
                     </div>
                     
                     <div class="status-text" id="statusText"></div>
@@ -329,9 +483,9 @@
         
         <div class="download-section" id="downloadSection">
             <h2>视频合成完成！</h2>
-            <p>您可以下载合成后的视频文件</p>
+            <p>您可以下载添加了字幕的视频文件</p>
             <button class="btn download-btn" id="downloadBtn">
-                <i>💾</i> 下载合成视频
+                <span>💾</span> 下载合成视频
             </button>
         </div>
         
@@ -341,22 +495,22 @@
                 <div class="step">
                     <div class="step-number">1</div>
                     <h3>上传文件</h3>
-                    <p>点击上传区域或拖放您的MP4视频文件和ASS字幕文件</p>
+                    <p>上传您的MP4视频文件和ASS字幕文件</p>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
                     <h3>开始合成</h3>
-                    <p>点击"开始合成"按钮将字幕合成到视频中</p>
+                    <p>点击"开始合成"按钮处理视频</p>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
                     <h3>等待处理</h3>
-                    <p>处理时间取决于视频大小和您的设备性能</p>
+                    <p>处理时间取决于视频大小和设备性能</p>
                 </div>
                 <div class="step">
                     <div class="step-number">4</div>
                     <h3>下载视频</h3>
-                    <p>处理完成后，下载合成字幕后的视频文件</p>
+                    <p>完成后下载带字幕的视频文件</p>
                 </div>
             </div>
         </div>
@@ -382,12 +536,14 @@
         
         // DOM元素
         const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const videoPreview = document.getElementById('videoPreview');
         const processBtn = document.getElementById('processBtn');
         const resetBtn = document.getElementById('resetBtn');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
+        const progressText = progressBar.querySelector('.progress-text');
         const statusText = document.getElementById('statusText');
         const downloadSection = document.getElementById('downloadSection');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -395,34 +551,21 @@
         // 事件监听
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            uploadArea.style.borderColor = '#4a9eff';
-            uploadArea.style.backgroundColor = 'rgba(74, 158, 255, 0.2)';
+            uploadArea.classList.add('active');
         });
         
         uploadArea.addEventListener('dragleave', () => {
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            uploadArea.style.backgroundColor = '';
+            uploadArea.classList.remove('active');
         });
         
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            uploadArea.style.backgroundColor = '';
-            
-            const files = e.dataTransfer.files;
-            handleFiles(files);
+            uploadArea.classList.remove('active');
+            handleFiles(e.dataTransfer.files);
         });
         
-        uploadArea.addEventListener('click', () => {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.multiple = true;
-            fileInput.accept = '.mp4,.ass';
-            fileInput.click();
-            
-            fileInput.addEventListener('change', (e) => {
-                handleFiles(e.target.files);
-            });
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
         });
         
         processBtn.addEventListener('click', processFiles);
@@ -431,22 +574,41 @@
         
         // 处理上传的文件
         function handleFiles(files) {
+            let filesAdded = false;
+            
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
+                const fileName = file.name.toLowerCase();
                 
-                if (file.name.endsWith('.mp4')) {
+                if (fileName.endsWith('.mp4')) {
+                    if (videoFile) {
+                        alert('您已经上传了一个视频文件。请先删除当前视频再上传新文件。');
+                        continue;
+                    }
                     videoFile = file;
                     previewVideo(file);
-                } else if (file.name.endsWith('.ass')) {
+                    filesAdded = true;
+                } else if (fileName.endsWith('.ass')) {
+                    if (subtitleFile) {
+                        alert('您已经上传了一个字幕文件。请先删除当前字幕再上传新文件。');
+                        continue;
+                    }
                     subtitleFile = file;
+                    filesAdded = true;
+                } else {
+                    alert(`文件"${file.name}"不是支持的格式。请上传MP4视频或ASS字幕文件。`);
                 }
             }
             
-            updateFileList();
-            
-            // 如果两个文件都已上传，启用处理按钮
-            if (videoFile && subtitleFile) {
-                processBtn.disabled = false;
+            if (filesAdded) {
+                updateFileList();
+                
+                // 如果两个文件都已上传，启用处理按钮
+                if (videoFile && subtitleFile) {
+                    processBtn.disabled = false;
+                    statusText.textContent = '文件准备就绪，可以开始合成';
+                    statusText.style.color = '#4ade80';
+                }
             }
         }
         
@@ -454,19 +616,57 @@
         function updateFileList() {
             let html = '';
             
-            if (videoFile) {
-                html += `<p><strong>视频文件:</strong> ${videoFile.name} (${formatFileSize(videoFile.size)})</p>`;
-            }
-            
-            if (subtitleFile) {
-                html += `<p><strong>字幕文件:</strong> ${subtitleFile.name} (${formatFileSize(subtitleFile.size)})</p>`;
-            }
-            
-            if (!videoFile && !subtitleFile) {
-                html = '<p>等待上传文件...</p>';
+            if (videoFile || subtitleFile) {
+                if (videoFile) {
+                    html += `
+                    <div class="file-item">
+                        <div class="file-icon">🎥</div>
+                        <div class="file-details">
+                            <div class="file-name">${videoFile.name}</div>
+                            <div class="file-size">${formatFileSize(videoFile.size)}</div>
+                        </div>
+                        <span class="file-type-label video-label">视频</span>
+                        <button class="remove-btn" data-type="video">×</button>
+                    </div>`;
+                }
+                
+                if (subtitleFile) {
+                    html += `
+                    <div class="file-item">
+                        <div class="file-icon">📝</div>
+                        <div class="file-details">
+                            <div class="file-name">${subtitleFile.name}</div>
+                            <div class="file-size">${formatFileSize(subtitleFile.size)}</div>
+                        </div>
+                        <span class="file-type-label subtitle-label">字幕</span>
+                        <button class="remove-btn" data-type="subtitle">×</button>
+                    </div>`;
+                }
+            } else {
+                html = '<div class="no-files">等待上传文件...</div>';
             }
             
             fileList.innerHTML = html;
+            
+            // 添加删除按钮事件
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const type = e.target.getAttribute('data-type');
+                    if (type === 'video') {
+                        videoFile = null;
+                        videoPreview.src = '';
+                    } else if (type === 'subtitle') {
+                        subtitleFile = null;
+                    }
+                    
+                    updateFileList();
+                    processBtn.disabled = !(videoFile && subtitleFile);
+                    
+                    if (!videoFile && !subtitleFile) {
+                        statusText.textContent = '';
+                    }
+                });
+            });
         }
         
         // 预览视频
@@ -484,10 +684,12 @@
             resetBtn.disabled = true;
             progressContainer.style.display = 'block';
             statusText.textContent = '正在初始化ffmpeg...';
+            statusText.style.color = '';
             
             try {
                 // 加载ffmpeg
                 if (!ffmpeg.isLoaded()) {
+                    statusText.textContent = '正在加载ffmpeg (约20秒)...';
                     await ffmpeg.load();
                 }
                 
@@ -515,6 +717,7 @@
                 
                 // 更新UI
                 statusText.textContent = '视频合成完成！';
+                statusText.style.color = '#4ade80';
                 downloadSection.style.display = 'block';
                 processBtn.disabled = true;
                 resetBtn.disabled = false;
@@ -522,6 +725,7 @@
             } catch (error) {
                 console.error('处理出错:', error);
                 statusText.textContent = `错误: ${error.message}`;
+                statusText.style.color = '#f87171';
                 processBtn.disabled = false;
                 resetBtn.disabled = false;
             }
@@ -530,6 +734,7 @@
         // 更新进度条
         function updateProgress(percent) {
             progressBar.style.width = `${percent}%`;
+            progressText.textContent = `${percent}%`;
             statusText.textContent = `处理中: ${percent}%`;
         }
         
@@ -539,7 +744,7 @@
             
             const a = document.createElement('a');
             a.href = outputVideoUrl;
-            a.download = `合成视频_${new Date().getTime()}.mp4`;
+            a.download = `synthesized_video_${new Date().getTime()}.mp4`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -556,13 +761,15 @@
             }
             
             // 重置UI
-            fileList.innerHTML = '<p>等待上传文件...</p>';
+            updateFileList();
             videoPreview.src = '';
             processBtn.disabled = true;
             resetBtn.disabled = false;
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
+            progressText.textContent = '0%';
             statusText.textContent = '';
+            statusText.style.color = '';
             downloadSection.style.display = 'none';
         }
         
